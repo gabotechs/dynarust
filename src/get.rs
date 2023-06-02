@@ -1,0 +1,148 @@
+use std::collections::HashMap;
+
+use aws_sdk_dynamodb::model::{AttributeValue, KeysAndAttributes};
+use serde::de::DeserializeOwned;
+use serde_json::Value;
+
+use crate::dao::{PK, SK};
+use crate::{Dao, DynarustError, Resource};
+
+impl Dao {
+    pub async fn get<T: Resource + DeserializeOwned>(
+        &self,
+        pk: &str,
+        sk: &str,
+    ) -> Result<Option<T>, DynarustError> {
+        let result = self
+            .client
+            .get_item()
+            .table_name(T::table())
+            .key(PK, AttributeValue::S(pk.to_string()))
+            .key(SK, AttributeValue::S(sk.to_string()))
+            .send()
+            .await?;
+
+        if let Some(item) = result.item() {
+            let mut object = Value::Object(serde_json::Map::new());
+            for (k, v) in item {
+                object[k] = Self::attr2value(v)?
+            }
+            let t: T = serde_json::from_value(object)?;
+            Ok(Some(t))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn batch_get<T: Resource + DeserializeOwned>(
+        &self,
+        items: Vec<(String, String)>,
+    ) -> Result<HashMap<(String, String), T>, DynarustError> {
+        let mut builder = KeysAndAttributes::builder();
+
+        for (pk, sk) in items {
+            builder = builder.keys(HashMap::from([
+                (PK.to_string(), AttributeValue::S(pk)),
+                (SK.to_string(), AttributeValue::S(sk)),
+            ]))
+        }
+
+        let result = self
+            .client
+            .batch_get_item()
+            .request_items(T::table(), builder.build())
+            .send()
+            .await?;
+
+        let mut resources = HashMap::new();
+
+        if let Some(responses) = result.responses() {
+            let responses = responses.get(&T::table()).ok_or_else(|| {
+                DynarustError::UnexpectedError(
+                    "Table was not returned in that batch items response".to_string(),
+                )
+            })?;
+
+            for item in responses {
+                let mut object = Value::Object(serde_json::Map::new());
+                for (k, v) in item {
+                    object[k] = Self::attr2value(v)?
+                }
+                let t: T = serde_json::from_value(object)?;
+                resources.insert((t.pk(), t.sk()), t);
+            }
+        } else {
+            return Ok(HashMap::new());
+        }
+
+        Ok(resources)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::dao::tests::TestResource;
+    use crate::{Dao, Resource};
+
+    #[tokio::test]
+    async fn creates_and_gets_resource() {
+        let dao = Dao::local().await;
+        dao.create_table::<TestResource>(None).await.unwrap();
+        let resource = TestResource {
+            pk: "creates_and_gets_resource".to_string(),
+            sk: "1".to_string(),
+            string: "asda".to_string(),
+            ..Default::default()
+        };
+
+        dao.create(&resource).await.unwrap();
+        let retrieved = dao
+            .get::<TestResource>(&resource.pk(), &resource.sk())
+            .await
+            .unwrap();
+        assert_eq!(retrieved, Some(resource))
+    }
+
+    #[tokio::test]
+    async fn creates_and_batch_gets_resource() {
+        let dao = Dao::local().await;
+        dao.create_table::<TestResource>(None).await.unwrap();
+
+        let pk = "creates_and_batch_gets_resource".to_string();
+
+        for i in 0..3 {
+            let resource = TestResource {
+                pk: pk.clone(),
+                sk: i.to_string(),
+                int: i,
+                ..Default::default()
+            };
+            dao.create(&resource).await.unwrap();
+        }
+
+        let retrieved = dao
+            .batch_get::<TestResource>(vec![
+                (pk.clone(), 0.to_string()),
+                (pk.clone(), 1.to_string()),
+                (pk.clone(), 2.to_string()),
+            ])
+            .await
+            .unwrap();
+        assert_eq!(retrieved.len(), 3);
+        assert_eq!(retrieved[&(pk.clone(), "0".to_string())].int, 0);
+        assert_eq!(retrieved[&(pk.clone(), "1".to_string())].int, 1);
+        assert_eq!(retrieved[&(pk.clone(), "2".to_string())].int, 2);
+    }
+
+    #[tokio::test]
+    async fn batch_gets_empty() {
+        let dao = Dao::local().await;
+        dao.create_table::<TestResource>(None).await.unwrap();
+
+        let err = dao.batch_get::<TestResource>(vec![]).await.unwrap_err();
+
+        assert!(err
+            .to_string()
+            .starts_with("The list of keys in RequestItems for BatchGetItem is required"))
+    }
+}
