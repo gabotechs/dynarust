@@ -2,10 +2,10 @@ use aws_sdk_dynamodb::model::AttributeValue;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::dao::{PK, SK};
-use crate::{Dao, DynarustError, ListOptions, Resource};
+use crate::client::{PK, SK};
+use crate::{Client, DynarustError, ListOptions, Resource};
 
-impl Dao {
+impl Client {
     pub async fn list<T: Resource + DeserializeOwned>(
         &self,
         pk: &str,
@@ -58,13 +58,13 @@ impl Dao {
 
 #[cfg(test)]
 mod tests {
-    use crate::dao::tests::TestResource;
-    use crate::{Dao, ListOptions, Resource};
+    use crate::client::tests::TestResource;
+    use crate::{Client, ListOptions, Resource};
 
     #[tokio::test]
     async fn creates_lists_resources() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let mut expected = vec![];
 
@@ -76,11 +76,11 @@ mod tests {
                 int: i,
                 ..Default::default()
             };
-            dao.create(&resource).await.unwrap();
+            client.create(&resource).await.unwrap();
             expected.push(resource);
         }
 
-        let asc_results = dao
+        let asc_results = client
             .list::<TestResource>(
                 pk,
                 &ListOptions {
@@ -95,7 +95,7 @@ mod tests {
         assert_eq!(asc_results[1], expected[1]);
         assert_eq!(asc_results[2], expected[2]);
 
-        let desc_results = dao
+        let desc_results = client
             .list::<TestResource>(
                 pk,
                 &ListOptions {
@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(desc_results[1], expected[8]);
         assert_eq!(desc_results[2], expected[7]);
 
-        let desc_results_offset = dao
+        let desc_results_offset = client
             .list::<TestResource>(
                 pk,
                 &ListOptions {

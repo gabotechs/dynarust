@@ -7,8 +7,8 @@ use aws_sdk_dynamodb::model::{
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 
-use crate::dao::{PK, SK};
-use crate::{Dao, DynamoOperator, Resource};
+use crate::client::{PK, SK};
+use crate::{Client, DynamoOperator, Resource};
 
 #[derive(Default)]
 pub struct ConditionCheckInfo {
@@ -155,7 +155,7 @@ impl ConditionCheckInfo {
     }
 }
 
-impl Dao {
+impl Client {
     fn seed() -> String {
         rand::thread_rng()
             .sample_iter(&Alphanumeric)
@@ -183,7 +183,7 @@ impl Dao {
         operator: DynamoOperator,
         value: i64,
     ) -> ConditionCheckInfo {
-        let key = Dao::seed();
+        let key = Client::seed();
         ConditionCheckInfo::default()
             .condition_expression(format!("#{} {} :{}", key, operator, key))
             .expression_attribute_names(format!("#{}", key), attr)
@@ -195,7 +195,7 @@ impl Dao {
         operator: DynamoOperator,
         value: &str,
     ) -> ConditionCheckInfo {
-        let key = Dao::seed();
+        let key = Client::seed();
         ConditionCheckInfo::default()
             .condition_expression(format!("#{} {} :{}", key, operator, key))
             .expression_attribute_names(format!("#{}", key), attr)
@@ -221,13 +221,13 @@ impl Dao {
 
 #[cfg(test)]
 mod tests {
-    use crate::dao::tests::TestResource;
-    use crate::Dao;
+    use crate::client::tests::TestResource;
+    use crate::Client;
 
     #[tokio::test]
     async fn creates_only_if_other_exists() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let resource = TestResource {
             pk: "creates_only_if_other_exists".to_string(),
@@ -235,15 +235,15 @@ mod tests {
             ..Default::default()
         };
 
-        let mut context = Dao::begin_transaction();
-        Dao::transact_create(&resource, &mut context).unwrap();
-        Dao::transact_condition_check::<TestResource>(
+        let mut context = Client::begin_transaction();
+        Client::transact_create(&resource, &mut context).unwrap();
+        Client::transact_condition_check::<TestResource>(
             "non",
             "existing",
-            Dao::condition_check_exists(),
+            Client::condition_check_exists(),
             &mut context,
         );
-        let err = dao.execute_transaction(context).await.unwrap_err();
+        let err = client.execute_transaction(context).await.unwrap_err();
 
         assert_eq!(err.to_string(), "Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed]")
     }

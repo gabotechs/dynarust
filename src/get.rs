@@ -4,21 +4,21 @@ use aws_sdk_dynamodb::model::{AttributeValue, KeysAndAttributes};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::dao::{PK, SK};
-use crate::{Dao, DynarustError, Resource};
+use crate::client::{PK, SK};
+use crate::{Client, DynarustError, Resource};
 
-impl Dao {
+impl Client {
     pub async fn get<T: Resource + DeserializeOwned>(
         &self,
-        pk: &str,
-        sk: &str,
+        pk: String,
+        sk: String,
     ) -> Result<Option<T>, DynarustError> {
         let result = self
             .client
             .get_item()
             .table_name(T::table())
-            .key(PK, AttributeValue::S(pk.to_string()))
-            .key(SK, AttributeValue::S(sk.to_string()))
+            .key(PK, AttributeValue::S(pk))
+            .key(SK, AttributeValue::S(sk))
             .send()
             .await?;
 
@@ -69,7 +69,7 @@ impl Dao {
                     object[k] = Self::attr2value(v)?
                 }
                 let t: T = serde_json::from_value(object)?;
-                resources.insert((t.pk(), t.sk()), t);
+                resources.insert((t.pk().to_string(), t.sk().to_string()), t);
             }
         } else {
             return Ok(HashMap::new());
@@ -81,13 +81,13 @@ impl Dao {
 
 #[cfg(test)]
 mod tests {
-    use crate::dao::tests::TestResource;
-    use crate::{Dao, Resource};
+    use crate::client::tests::TestResource;
+    use crate::{Client, Resource};
 
     #[tokio::test]
     async fn creates_and_gets_resource() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
         let resource = TestResource {
             pk: "creates_and_gets_resource".to_string(),
             sk: "1".to_string(),
@@ -95,9 +95,9 @@ mod tests {
             ..Default::default()
         };
 
-        dao.create(&resource).await.unwrap();
-        let retrieved = dao
-            .get::<TestResource>(&resource.pk(), &resource.sk())
+        client.create(&resource).await.unwrap();
+        let retrieved = client
+            .get::<TestResource>(resource.pk(), resource.sk())
             .await
             .unwrap();
         assert_eq!(retrieved, Some(resource))
@@ -105,8 +105,8 @@ mod tests {
 
     #[tokio::test]
     async fn creates_and_batch_gets_resource() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let pk = "creates_and_batch_gets_resource".to_string();
 
@@ -117,10 +117,10 @@ mod tests {
                 int: i,
                 ..Default::default()
             };
-            dao.create(&resource).await.unwrap();
+            client.create(&resource).await.unwrap();
         }
 
-        let retrieved = dao
+        let retrieved = client
             .batch_get::<TestResource>(vec![
                 (pk.clone(), 0.to_string()),
                 (pk.clone(), 1.to_string()),
@@ -136,10 +136,10 @@ mod tests {
 
     #[tokio::test]
     async fn batch_gets_empty() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
-        let err = dao.batch_get::<TestResource>(vec![]).await.unwrap_err();
+        let err = client.batch_get::<TestResource>(vec![]).await.unwrap_err();
 
         assert!(err
             .to_string()

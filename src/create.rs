@@ -2,9 +2,9 @@ use aws_sdk_dynamodb::model::{put, AttributeValue, TransactWriteItem};
 use serde::Serialize;
 
 use crate::condition_check::ConditionCheckInfo;
-use crate::{Dao, DynarustError, Resource};
+use crate::{Client, DynarustError, Resource};
 
-impl Dao {
+impl Client {
     pub fn transact_create<'a, T: Resource + Serialize>(
         resource: &'a T,
         transaction_context: &mut Vec<TransactWriteItem>,
@@ -28,8 +28,8 @@ impl Dao {
         let condition_checks = Self::condition_check_not_exists().merge(condition_checks);
 
         let mut put = builder
-            .item(crate::dao::PK, AttributeValue::S(resource.pk()))
-            .item(crate::dao::SK, AttributeValue::S(resource.sk()));
+            .item(crate::PK, AttributeValue::S(resource.pk()))
+            .item(crate::SK, AttributeValue::S(resource.sk()));
 
         put = condition_checks.dump_in_put(put);
 
@@ -62,8 +62,8 @@ impl Dao {
         builder = condition_checks.dump_in_put_item(builder);
 
         builder
-            .item(crate::dao::PK, AttributeValue::S(resource.pk()))
-            .item(crate::dao::SK, AttributeValue::S(resource.sk()))
+            .item(crate::PK, AttributeValue::S(resource.pk().to_string()))
+            .item(crate::SK, AttributeValue::S(resource.sk().to_string()))
             .send()
             .await?;
 
@@ -82,8 +82,8 @@ impl Dao {
             builder = builder.item(k, Self::value2attr(&v)?)
         }
         builder
-            .item(crate::dao::PK, AttributeValue::S(resource.pk()))
-            .item(crate::dao::SK, AttributeValue::S(resource.sk()))
+            .item(crate::PK, AttributeValue::S(resource.pk()))
+            .item(crate::SK, AttributeValue::S(resource.sk()))
             .send()
             .await?;
 
@@ -93,19 +93,19 @@ impl Dao {
 
 #[cfg(test)]
 mod tests {
-    use crate::dao::tests::TestResource;
-    use crate::{Dao, Resource};
+    use crate::client::tests::TestResource;
+    use crate::{Client, Resource};
 
     #[tokio::test]
     async fn is_able_to_create_table() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
     }
 
     #[tokio::test]
     async fn supports_nullable_values() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let resource_1 = TestResource {
             pk: "supports_nullable_values".to_string(),
@@ -120,16 +120,16 @@ mod tests {
             ..Default::default()
         };
 
-        let created_1 = dao.create(&resource_1).await.unwrap();
-        let created_2 = dao.create(&resource_2).await.unwrap();
+        let created_1 = client.create(&resource_1).await.unwrap();
+        let created_2 = client.create(&resource_2).await.unwrap();
         assert_eq!(created_1.nullable, resource_1.nullable);
         assert_eq!(created_2.nullable, resource_2.nullable)
     }
 
     #[tokio::test]
     async fn supports_array_values() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let resource_1 = TestResource {
             pk: "supports_array_values".to_string(),
@@ -138,14 +138,14 @@ mod tests {
             ..Default::default()
         };
 
-        let created_1 = dao.create(&resource_1).await.unwrap();
+        let created_1 = client.create(&resource_1).await.unwrap();
         assert_eq!(created_1.string_arr, resource_1.string_arr);
     }
 
     #[tokio::test]
     async fn creates_two_resources_transactionally() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let resource_1 = TestResource {
             pk: "creates_two_resources_transactionally".to_string(),
@@ -159,19 +159,19 @@ mod tests {
             ..Default::default()
         };
 
-        let mut context = Dao::begin_transaction();
-        Dao::transact_create(&resource_1, &mut context).unwrap();
-        Dao::transact_create(&resource_2, &mut context).unwrap();
-        dao.execute_transaction(context).await.unwrap();
+        let mut context = Client::begin_transaction();
+        Client::transact_create(&resource_1, &mut context).unwrap();
+        Client::transact_create(&resource_2, &mut context).unwrap();
+        client.execute_transaction(context).await.unwrap();
 
-        let retrieved_1 = dao
-            .get::<TestResource>(&resource_1.pk(), &resource_1.sk())
+        let retrieved_1 = client
+            .get::<TestResource>(resource_1.pk(), resource_1.sk())
             .await
             .unwrap();
         assert_eq!(retrieved_1, Some(resource_1));
 
-        let retrieved_2 = dao
-            .get::<TestResource>(&resource_2.pk(), &resource_2.sk())
+        let retrieved_2 = client
+            .get::<TestResource>(resource_2.pk(), resource_2.sk())
             .await
             .unwrap();
         assert_eq!(retrieved_2, Some(resource_2))

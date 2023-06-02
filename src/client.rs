@@ -2,7 +2,6 @@ use std::env;
 use std::fmt::{Display, Formatter};
 
 use aws_sdk_dynamodb::model::{AttributeValue, TransactWriteItem};
-use aws_sdk_dynamodb::Client;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
@@ -33,25 +32,25 @@ pub trait Resource {
     fn sk(&self) -> String;
 }
 
-pub struct Dao {
-    pub(crate) client: Client,
+pub struct Client {
+    pub(crate) client: aws_sdk_dynamodb::Client,
 }
 
-impl Dao {
-    pub async fn aws() -> Dao {
+impl Client {
+    pub async fn aws() -> Self {
         let cfg = aws_config::from_env().load().await;
-        Dao {
-            client: Client::new(&cfg),
+        Client {
+            client: aws_sdk_dynamodb::Client::new(&cfg),
         }
     }
 
-    pub async fn local() -> Dao {
+    pub async fn local() -> Self {
         env::set_var("AWS_REGION", "us-east-1");
         env::set_var("AWS_ACCESS_KEY_ID", ".");
         env::set_var("AWS_SECRET_ACCESS_KEY", ".");
         let cfg = aws_config::from_env().load().await;
-        Dao {
-            client: Client::from_conf(
+        Client {
+            client: aws_sdk_dynamodb::Client::from_conf(
                 aws_sdk_dynamodb::config::Builder::from(&cfg)
                     .endpoint_url("http://localhost:8000")
                     .build(),

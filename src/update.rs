@@ -5,11 +5,11 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::client::{PK, SK};
 use crate::condition_check::ConditionCheckInfo;
-use crate::dao::{PK, SK};
-use crate::{Dao, DynarustError, Resource};
+use crate::{Client, DynarustError, Resource};
 
-impl Dao {
+impl Client {
     pub fn transact_update<T: Resource + Serialize + DeserializeOwned>(
         resource: &T,
         request: Value,
@@ -41,8 +41,8 @@ impl Dao {
 
         let mut builder = update::Builder::default()
             .table_name(T::table())
-            .key(PK, AttributeValue::S(resource.pk()))
-            .key(SK, AttributeValue::S(resource.sk()));
+            .key(PK, AttributeValue::S(resource.pk().to_string()))
+            .key(SK, AttributeValue::S(resource.sk().to_string()));
 
         let mut update_expression = "set ".to_string();
         let request_len = request.len();
@@ -98,8 +98,8 @@ impl Dao {
             .client
             .update_item()
             .table_name(T::table())
-            .key(PK, AttributeValue::S(resource.pk()))
-            .key(SK, AttributeValue::S(resource.sk()));
+            .key(PK, AttributeValue::S(resource.pk().to_string()))
+            .key(SK, AttributeValue::S(resource.sk().to_string()));
 
         let mut update_expression = "set ".to_string();
         let request_len = request.len();
@@ -126,22 +126,22 @@ impl Dao {
 mod tests {
     use serde_json::json;
 
-    use crate::dao::tests::TestResource;
-    use crate::{Dao, DynamoOperator, Resource};
+    use crate::client::tests::TestResource;
+    use crate::{Client, DynamoOperator, Resource};
 
     #[tokio::test]
     async fn creates_updates_gets_resource() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
         let resource = TestResource {
             pk: "creates_updates_gets_resource".to_string(),
             sk: "1".to_string(),
             string: "asda".to_string(),
             ..Default::default()
         };
-        dao.create(&resource).await.unwrap();
+        client.create(&resource).await.unwrap();
 
-        let updated = dao
+        let updated = client
             .update(
                 &resource,
                 json!({
@@ -152,8 +152,8 @@ mod tests {
             .await
             .unwrap();
 
-        let retrieved = dao
-            .get::<TestResource>(&resource.pk(), &resource.sk())
+        let retrieved = client
+            .get::<TestResource>(resource.pk(), resource.sk())
             .await
             .unwrap();
         assert_eq!(retrieved, Some(updated))
@@ -161,16 +161,16 @@ mod tests {
 
     #[tokio::test]
     async fn updates_null_field() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
         let resource = TestResource {
             pk: "updates_null_field".to_string(),
             sk: "1".to_string(),
             ..Default::default()
         };
-        dao.create(&resource).await.unwrap();
+        client.create(&resource).await.unwrap();
 
-        let updated = dao
+        let updated = client
             .update(
                 &resource,
                 json!({
@@ -180,8 +180,8 @@ mod tests {
             .await
             .unwrap();
 
-        let retrieved = dao
-            .get::<TestResource>(&resource.pk(), &resource.sk())
+        let retrieved = client
+            .get::<TestResource>(resource.pk(), resource.sk())
             .await
             .unwrap();
         assert_eq!(retrieved, Some(updated))
@@ -189,8 +189,8 @@ mod tests {
 
     #[tokio::test]
     async fn creates_updates_conditional_check_fails() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
         let resource = TestResource {
             pk: "creates_updates_conditional_check_fails".to_string(),
             sk: "1".to_string(),
@@ -198,25 +198,34 @@ mod tests {
             int: 0,
             ..Default::default()
         };
-        dao.create(&resource).await.unwrap();
+        client.create(&resource).await.unwrap();
 
-        dao.update_with_checks(
-            &resource,
-            json!({
-                "int": 1
-            }),
-            vec![Dao::condition_check_number("int", DynamoOperator::NEq, 1)],
-        )
-        .await
-        .unwrap();
+        client
+            .update_with_checks(
+                &resource,
+                json!({
+                    "int": 1
+                }),
+                vec![Client::condition_check_number(
+                    "int",
+                    DynamoOperator::NEq,
+                    1,
+                )],
+            )
+            .await
+            .unwrap();
 
-        let err = dao
+        let err = client
             .update_with_checks(
                 &resource,
                 json!({
                     "int": 2
                 }),
-                vec![Dao::condition_check_number("int", DynamoOperator::NEq, 1)],
+                vec![Client::condition_check_number(
+                    "int",
+                    DynamoOperator::NEq,
+                    1,
+                )],
             )
             .await
             .unwrap_err();
@@ -226,8 +235,8 @@ mod tests {
 
     #[tokio::test]
     async fn creates_and_updates_resources_transactionally() {
-        let dao = Dao::local().await;
-        dao.create_table::<TestResource>(None).await.unwrap();
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
 
         let resource_1 = TestResource {
             pk: "creates_and_updates_resources_transactionally".to_string(),
@@ -235,7 +244,7 @@ mod tests {
             ..Default::default()
         };
 
-        dao.create(&resource_1).await.unwrap();
+        client.create(&resource_1).await.unwrap();
 
         let resource_2 = TestResource {
             pk: "creates_and_updates_resources_transactionally".to_string(),
@@ -243,8 +252,8 @@ mod tests {
             ..Default::default()
         };
 
-        let mut context = Dao::begin_transaction();
-        let updated_resource_1 = Dao::transact_update(
+        let mut context = Client::begin_transaction();
+        let updated_resource_1 = Client::transact_update(
             &resource_1,
             json!({
                 "string": "updated"
@@ -252,17 +261,17 @@ mod tests {
             &mut context,
         )
         .unwrap();
-        Dao::transact_create(&resource_2, &mut context).unwrap();
-        dao.execute_transaction(context).await.unwrap();
+        Client::transact_create(&resource_2, &mut context).unwrap();
+        client.execute_transaction(context).await.unwrap();
 
-        let retrieved_1 = dao
-            .get::<TestResource>(&updated_resource_1.pk(), &updated_resource_1.sk())
+        let retrieved_1 = client
+            .get::<TestResource>(updated_resource_1.pk(), updated_resource_1.sk())
             .await
             .unwrap();
         assert_eq!(retrieved_1, Some(updated_resource_1));
 
-        let retrieved_2 = dao
-            .get::<TestResource>(&resource_2.pk(), &resource_2.sk())
+        let retrieved_2 = client
+            .get::<TestResource>(resource_2.pk(), resource_2.sk())
             .await
             .unwrap();
         assert_eq!(retrieved_2, Some(resource_2))

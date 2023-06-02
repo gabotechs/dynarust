@@ -1,4 +1,4 @@
-use crate::{Dao, DynarustError, Resource, PK, SK};
+use crate::{Client, DynarustError, Resource, PK, SK};
 use aws_sdk_dynamodb::model::{
     AttributeDefinition, KeySchemaElement, KeyType, ProvisionedThroughput, ScalarAttributeType,
 };
@@ -18,7 +18,7 @@ impl Default for CreateTableOptions {
     }
 }
 
-impl Dao {
+impl Client {
     pub fn create_sam_resource<T: Resource>(maybe_options: Option<CreateTableOptions>) -> String {
         let options = maybe_options.unwrap_or(CreateTableOptions::default());
         let read_capacity = options.read_capacity;
@@ -95,8 +95,7 @@ impl Dao {
                 Ok(())
             } else {
                 Err(DynarustError::UnexpectedError(format!(
-                    "Unknown error creating table {}",
-                    service_err.to_string()
+                    "Unknown error creating table {service_err}",
                 )))
             }
         } else {

@@ -18,7 +18,7 @@ pub enum DynarustError {
     #[error("{0}")]
     AttributeSerializeError(String),
 
-    #[error("")]
+    #[error("Error while deserializing resource: {0}")]
     ResourceDeserializeError(#[from] serde_json::Error),
 
     #[error("{0}")]

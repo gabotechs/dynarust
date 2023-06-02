@@ -1,13 +1,13 @@
+mod client;
 mod condition_check;
 mod create;
-mod dao;
 mod delete;
+mod errors;
 mod get;
 mod list;
 mod table;
 mod update;
-mod errors;
 
-pub use dao::*;
+pub use client::*;
 pub use errors::*;
 pub use table::CreateTableOptions;
