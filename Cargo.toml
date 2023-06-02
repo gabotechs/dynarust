@@ -1,9 +1,15 @@
 [package]
+authors = ["Gabriel Musat Mestre"]
+categories = ["databases", "orm", "odm", "aws"]
+description = "A DynamoDB odm library"
+homepage = "https://github.com/gabotechs/dynorust"
+keywords = ["dynamo", "dynamodb", "aws", "odm"]
+license = "MIT"
 name = "dynarust"
+readme = "README.md"
+repository = "https://github.com/gabotechs/dynorust"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 aws-sdk-dynamodb = "^0.24.0"
