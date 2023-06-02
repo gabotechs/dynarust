@@ -1,7 +1,7 @@
 [package]
 authors = ["Gabriel Musat Mestre"]
 categories = ["databases", "orm", "odm", "aws"]
-description = "A DynamoDB odm library"
+description = "A DynamoDB odm library for rust"
 homepage = "https://github.com/gabotechs/dynorust"
 keywords = ["dynamo", "dynamodb", "aws", "odm"]
 license = "MIT"
