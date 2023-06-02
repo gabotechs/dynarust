@@ -1,5 +1,7 @@
 # Dynarust
 
+[![Coverage Status](https://coveralls.io/repos/github/gabotechs/dynarust/badge.svg?branch=main)](https://coveralls.io/github/gabotechs/dynarust?branch=main)
+
 An opinionated DynamoDB ODM library for Rust that maps `structs`
 to native Dynamo items using [serde](https://github.com/serde-rs/serde)
 and [serde_json](https://github.com/serde-rs/json).
