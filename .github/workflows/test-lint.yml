@@ -1,4 +1,4 @@
-name: Test/Lint
+name: Test/Lint/Release
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   clippy:
+    if: ${{ !startsWith(github.event.head_commit.message, 'tag') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -27,6 +28,7 @@ jobs:
         run: cargo clippy --all
 
   test:
+    if: ${{ !startsWith(github.event.head_commit.message, 'tag') }}
     runs-on: ubuntu-latest
     services:
       dynamo:
@@ -63,5 +65,45 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
+  Release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - clippy
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: '0' # https://github.com/actions/checkout/issues/217
 
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable-2023-04-20 # Fixed so that it can be cached
+          profile: minimal
 
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install bump tool
+        run: cargo install cargo-workspaces
+
+      - name: Tag and Release
+        run: |
+          SEM_VER=$(.github/semver.sh)
+          cargo workspaces version $SEM_VER -y --no-git-commit
+          
+          version=`grep '^version = ' Cargo.toml | sed 's/version = //; s/\"//; s/\"//'`
+          git config --global user.email "gabimtme@gmail.com"
+          git config --global user.name "Automatic bumper"
+          git add .
+          git commit -m "tag: v$version" 
+          git tag "v$version"
+          git push
+          git push --tags
+          gh release create "v$version"
+
+      - name: Publish
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
