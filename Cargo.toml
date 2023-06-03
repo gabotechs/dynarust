@@ -8,7 +8,7 @@ license = "MIT"
 name = "dynarust"
 readme = "README.md"
 repository = "https://github.com/gabotechs/dynorust"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
