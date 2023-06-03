@@ -105,7 +105,8 @@ jobs:
           git push
           git push --tags
           gh release create "v$version"
-
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Publish
         run: cargo publish
         env:
