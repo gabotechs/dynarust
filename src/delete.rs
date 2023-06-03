@@ -6,16 +6,14 @@ use crate::{Client, DynarustError, Resource};
 
 impl Client {
     pub fn transact_delete<T: Resource>(
-        pk: String,
-        sk: String,
+        pk_sk: (String, String),
         transaction_context: &mut Vec<TransactWriteItem>,
     ) {
-        Self::transact_delete_with_checks::<T>(pk, sk, vec![], transaction_context)
+        Self::transact_delete_with_checks::<T>(pk_sk, vec![], transaction_context)
     }
 
     pub fn transact_delete_with_checks<T: Resource>(
-        pk: String,
-        sk: String,
+        (pk, sk): (String, String),
         condition_checks: Vec<ConditionCheckInfo>,
         transaction_context: &mut Vec<TransactWriteItem>,
     ) {
@@ -31,14 +29,13 @@ impl Client {
         transaction_context.push(TransactWriteItem::builder().delete(delete.build()).build());
     }
 
-    pub async fn delete<T: Resource>(&self, pk: String, sk: String) -> Result<(), DynarustError> {
-        self.delete_with_checks::<T>(pk, sk, vec![]).await
+    pub async fn delete<T: Resource>(&self, pk_sk: (String, String)) -> Result<(), DynarustError> {
+        self.delete_with_checks::<T>(pk_sk, vec![]).await
     }
 
     pub async fn delete_with_checks<T: Resource>(
         &self,
-        pk: String,
-        sk: String,
+        (pk, sk): (String, String),
         condition_checks: Vec<ConditionCheckInfo>,
     ) -> Result<(), DynarustError> {
         let mut builder = self
@@ -74,22 +71,16 @@ mod tests {
         };
         client.create(&resource).await.unwrap();
 
-        let defined = client
-            .get::<TestResource>(resource.pk(), resource.sk())
-            .await
-            .unwrap();
+        let defined = client.get::<TestResource>(resource.pk_sk()).await.unwrap();
 
         assert_ne!(defined, None);
 
         client
-            .delete::<TestResource>(resource.pk(), resource.sk())
+            .delete::<TestResource>(resource.pk_sk())
             .await
             .unwrap();
 
-        let undefined = client
-            .get::<TestResource>(resource.pk(), resource.sk())
-            .await
-            .unwrap();
+        let undefined = client.get::<TestResource>(resource.pk_sk()).await.unwrap();
 
         assert_eq!(undefined, None)
     }
@@ -108,8 +99,7 @@ mod tests {
 
         let err = client
             .delete_with_checks::<TestResource>(
-                resource.pk(),
-                resource.sk(),
+                resource.pk_sk(),
                 vec![Client::condition_check_number("int", DynamoOperator::Gt, 1)],
             )
             .await

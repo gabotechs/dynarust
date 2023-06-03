@@ -27,9 +27,10 @@ impl Client {
 
         let condition_checks = Self::condition_check_not_exists().merge(condition_checks);
 
+        let (pk, sk) = resource.pk_sk();
         let mut put = builder
-            .item(crate::PK, AttributeValue::S(resource.pk()))
-            .item(crate::SK, AttributeValue::S(resource.sk()));
+            .item(crate::PK, AttributeValue::S(pk))
+            .item(crate::SK, AttributeValue::S(sk));
 
         put = condition_checks.dump_in_put(put);
 
@@ -61,9 +62,10 @@ impl Client {
 
         builder = condition_checks.dump_in_put_item(builder);
 
+        let (pk, sk) = resource.pk_sk();
         builder
-            .item(crate::PK, AttributeValue::S(resource.pk().to_string()))
-            .item(crate::SK, AttributeValue::S(resource.sk().to_string()))
+            .item(crate::PK, AttributeValue::S(pk))
+            .item(crate::SK, AttributeValue::S(sk))
             .send()
             .await?;
 
@@ -81,9 +83,10 @@ impl Client {
         for (k, v) in object {
             builder = builder.item(k, Self::value2attr(&v)?)
         }
+        let (pk, sk) = resource.pk_sk();
         builder
-            .item(crate::PK, AttributeValue::S(resource.pk()))
-            .item(crate::SK, AttributeValue::S(resource.sk()))
+            .item(crate::PK, AttributeValue::S(pk))
+            .item(crate::SK, AttributeValue::S(sk))
             .send()
             .await?;
 
@@ -165,13 +168,13 @@ mod tests {
         client.execute_transaction(context).await.unwrap();
 
         let retrieved_1 = client
-            .get::<TestResource>(resource_1.pk(), resource_1.sk())
+            .get::<TestResource>(resource_1.pk_sk())
             .await
             .unwrap();
         assert_eq!(retrieved_1, Some(resource_1));
 
         let retrieved_2 = client
-            .get::<TestResource>(resource_2.pk(), resource_2.sk())
+            .get::<TestResource>(resource_2.pk_sk())
             .await
             .unwrap();
         assert_eq!(retrieved_2, Some(resource_2))

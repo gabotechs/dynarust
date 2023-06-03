@@ -39,10 +39,11 @@ impl Client {
 
         let condition_check = Self::condition_check_exists().merge(condition_checks);
 
+        let (pk, sk) = resource.pk_sk();
         let mut builder = update::Builder::default()
             .table_name(T::table())
-            .key(PK, AttributeValue::S(resource.pk().to_string()))
-            .key(SK, AttributeValue::S(resource.sk().to_string()));
+            .key(PK, AttributeValue::S(pk))
+            .key(SK, AttributeValue::S(sk));
 
         let mut update_expression = "set ".to_string();
         let request_len = request.len();
@@ -94,12 +95,13 @@ impl Client {
 
         let condition_check = Self::condition_check_exists().merge(condition_checks);
 
+        let (pk, sk) = resource.pk_sk();
         let mut builder = self
             .client
             .update_item()
             .table_name(T::table())
-            .key(PK, AttributeValue::S(resource.pk().to_string()))
-            .key(SK, AttributeValue::S(resource.sk().to_string()));
+            .key(PK, AttributeValue::S(pk))
+            .key(SK, AttributeValue::S(sk));
 
         let mut update_expression = "set ".to_string();
         let request_len = request.len();
@@ -152,10 +154,7 @@ mod tests {
             .await
             .unwrap();
 
-        let retrieved = client
-            .get::<TestResource>(resource.pk(), resource.sk())
-            .await
-            .unwrap();
+        let retrieved = client.get::<TestResource>(resource.pk_sk()).await.unwrap();
         assert_eq!(retrieved, Some(updated))
     }
 
@@ -180,10 +179,7 @@ mod tests {
             .await
             .unwrap();
 
-        let retrieved = client
-            .get::<TestResource>(resource.pk(), resource.sk())
-            .await
-            .unwrap();
+        let retrieved = client.get::<TestResource>(resource.pk_sk()).await.unwrap();
         assert_eq!(retrieved, Some(updated))
     }
 
@@ -265,13 +261,13 @@ mod tests {
         client.execute_transaction(context).await.unwrap();
 
         let retrieved_1 = client
-            .get::<TestResource>(updated_resource_1.pk(), updated_resource_1.sk())
+            .get::<TestResource>(updated_resource_1.pk_sk())
             .await
             .unwrap();
         assert_eq!(retrieved_1, Some(updated_resource_1));
 
         let retrieved_2 = client
-            .get::<TestResource>(resource_2.pk(), resource_2.sk())
+            .get::<TestResource>(resource_2.pk_sk())
             .await
             .unwrap();
         assert_eq!(retrieved_2, Some(resource_2))

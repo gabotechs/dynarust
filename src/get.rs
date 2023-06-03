@@ -10,8 +10,7 @@ use crate::{Client, DynarustError, Resource};
 impl Client {
     pub async fn get<T: Resource + DeserializeOwned>(
         &self,
-        pk: String,
-        sk: String,
+        (pk, sk): (String, String),
     ) -> Result<Option<T>, DynarustError> {
         let result = self
             .client
@@ -69,7 +68,7 @@ impl Client {
                     object[k] = Self::attr2value(v)?
                 }
                 let t: T = serde_json::from_value(object)?;
-                resources.insert((t.pk().to_string(), t.sk().to_string()), t);
+                resources.insert(t.pk_sk(), t);
             }
         } else {
             return Ok(HashMap::new());
@@ -96,10 +95,7 @@ mod tests {
         };
 
         client.create(&resource).await.unwrap();
-        let retrieved = client
-            .get::<TestResource>(resource.pk(), resource.sk())
-            .await
-            .unwrap();
+        let retrieved = client.get::<TestResource>(resource.pk_sk()).await.unwrap();
         assert_eq!(retrieved, Some(resource))
     }
 

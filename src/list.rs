@@ -8,7 +8,7 @@ use crate::{Client, DynarustError, ListOptions, Resource};
 impl Client {
     pub async fn list<T: Resource + DeserializeOwned>(
         &self,
-        pk: &str,
+        pk: String,
         options: &ListOptions,
     ) -> Result<Vec<T>, DynarustError> {
         let scan_index_forward = !options.sort_desc;
@@ -82,7 +82,7 @@ mod tests {
 
         let asc_results = client
             .list::<TestResource>(
-                pk,
+                pk.to_string(),
                 &ListOptions {
                     limit: 3,
                     ..Default::default()
@@ -97,7 +97,7 @@ mod tests {
 
         let desc_results = client
             .list::<TestResource>(
-                pk,
+                pk.to_string(),
                 &ListOptions {
                     limit: 3,
                     sort_desc: true,
@@ -113,11 +113,11 @@ mod tests {
 
         let desc_results_offset = client
             .list::<TestResource>(
-                pk,
+                pk.to_string(),
                 &ListOptions {
                     limit: 3,
                     sort_desc: true,
-                    from: Some(desc_results[2].sk()),
+                    from: Some(desc_results[2].pk_sk().1),
                 },
             )
             .await

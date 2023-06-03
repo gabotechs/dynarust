@@ -28,8 +28,7 @@ impl Default for ListOptions {
 
 pub trait Resource {
     fn table() -> String;
-    fn pk(&self) -> String;
-    fn sk(&self) -> String;
+    fn pk_sk(&self) -> (String, String);
 }
 
 pub struct Client {
@@ -196,12 +195,8 @@ pub(crate) mod tests {
             TABLE.to_string()
         }
 
-        fn pk(&self) -> String {
-            self.pk.clone()
-        }
-
-        fn sk(&self) -> String {
-            self.sk.clone()
+        fn pk_sk(&self) -> (String, String) {
+            (self.pk.clone(), self.sk.clone())
         }
     }
 }

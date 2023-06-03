@@ -47,3 +47,9 @@ async fn main() -> Result<()> {
 }
 ```
 
+# Limitations
+
+- Only works with the `HASH` and `RANGE` keys setup.
+- It is not compatible with secondary indexes.
+- 
+
