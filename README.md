@@ -22,9 +22,8 @@ struct Car {
 }
 
 impl dynarust::Resource for Car {
-    fn table() -> String { "Cars".to_string() }
-    fn pk(&self) -> String { self.brand.clone() }
-    fn sk(&self) -> String { self.model.clone() }
+    fn table() -> String { "Cars".into() }
+    fn pk_sk(&self) -> (String, String) { (self.brand.clone(), self.model.clone()) }
 }
 
 #[tokio::main]
@@ -41,15 +40,45 @@ async fn main() -> Result<()> {
     
     client.update(&car, json!({ "horse_power": 534 })).await?;
     
-    let tesla = client.get::<Car>("Tesla", "Y").await?;
+    let tesla = client.get::<Car>(("Tesla".into(), "Y".into())).await?;
     
     assert_eq!(tesla.unwrap().horse_power, 534)
 }
 ```
 
-# Limitations
+# Setup
+
+In order to use this library, the table setup would need to look like this equivalent CFN template:
+```yaml
+DynamoDBTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: my-table
+    AttributeDefinitions:
+      - AttributeName: PrimaryKey
+        AttributeType: S
+      - AttributeName: SecondaryKey
+        AttributeType: S
+    KeySchema:
+      - AttributeName: PrimaryKey
+        KeyType: HASH
+      - AttributeName: SecondaryKey
+        KeyType: RANGE
+```
+
+`dynarust` expects that attributes `PrimaryKey` and `SecondaryKey` are declared in the key schema
+as `HASH` and `RANGE` values, and that both are of type `S` (string).
+
+
+# Coming next
+
+- Support for global secondary indexes, with the same API that exists right now for the
+primary ones.
+
+# Current Limitations
 
 - Only works with the `HASH` and `RANGE` keys setup.
-- It is not compatible with secondary indexes.
+- It is not compatible with global or local secondary indexes.
+- Missing some batch operations, right now only `batch_get` is implemented.
 - 
 
