@@ -97,8 +97,8 @@ jobs:
           cargo workspaces version $SEM_VER -y --no-git-commit
           
           version=`grep '^version = ' Cargo.toml | sed 's/version = //; s/\"//; s/\"//'`
-          git config --global user.email "gb.mt.me@gmail.com"
-          git config --global user.name "Automatic bumper"
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           git add .
           git commit -m "tag: v$version" 
           git tag "v$version"
