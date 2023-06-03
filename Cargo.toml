@@ -2,12 +2,12 @@
 authors = ["Gabriel Musat Mestre"]
 categories = ["databases", "orm", "odm", "aws"]
 description = "A DynamoDB odm library for rust"
-homepage = "https://github.com/gabotechs/dynorust"
+homepage = "https://github.com/gabotechs/dynarust"
 keywords = ["dynamo", "dynamodb", "aws", "odm"]
 license = "MIT"
 name = "dynarust"
 readme = "README.md"
-repository = "https://github.com/gabotechs/dynorust"
+repository = "https://github.com/gabotechs/dynarust"
 version = "0.2.0"
 edition = "2021"
 
