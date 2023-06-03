@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fmt::{Display, Formatter};
 
@@ -92,6 +93,12 @@ impl Client {
                 result.push(Self::value2attr(e)?);
             }
             Ok(AttributeValue::L(result))
+        } else if let Some(obj) = v.as_object() {
+            let mut hashmap = HashMap::new();
+            for (k, v) in obj.into_iter() {
+                hashmap.insert(k.clone(), Self::value2attr(v)?);
+            }
+            Ok(AttributeValue::M(hashmap))
         } else {
             Err(DynarustError::AttributeParseError(format!(
                 "cannot map value {} to a dynamo attribute",
@@ -114,6 +121,13 @@ impl Client {
                     result.push(Self::attr2value(e)?)
                 }
                 Ok(Value::Array(result))
+            }
+            AttributeValue::M(hashmap) => {
+                let mut map = Map::new();
+                for (k, v) in hashmap.iter() {
+                    map.insert(k.clone(), Self::attr2value(v)?);
+                }
+                Ok(Value::Object(map))
             }
             _ => Err(DynarustError::AttributeParseError(format!(
                 "Error parsing attribute value {:?}",
@@ -167,8 +181,10 @@ pub(crate) mod tests {
     use rand::distributions::Alphanumeric;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
+    use serde_json::json;
+    use std::collections::HashMap;
 
-    use crate::Resource;
+    use crate::{Client, Resource};
 
     lazy_static! {
         pub(crate) static ref TABLE: String = rand::thread_rng()
@@ -176,6 +192,11 @@ pub(crate) mod tests {
             .take(7)
             .map(char::from)
             .collect();
+    }
+    #[derive(Deserialize, Serialize, Default, Debug, PartialEq, Clone)]
+    pub(crate) struct Nested {
+        code: i64,
+        msg: String,
     }
 
     #[derive(Deserialize, Serialize, Default, Debug, PartialEq, Clone)]
@@ -188,6 +209,8 @@ pub(crate) mod tests {
         pub(crate) float: f64,
         pub(crate) nullable: Option<String>,
         pub(crate) string_arr: Vec<String>,
+        pub(crate) string_2_string_hashmap: HashMap<String, String>,
+        pub(crate) nested: Nested,
     }
 
     impl Resource for TestResource {
@@ -198,5 +221,90 @@ pub(crate) mod tests {
         fn pk_sk(&self) -> (String, String) {
             (self.pk.clone(), self.sk.clone())
         }
+    }
+
+    #[tokio::test]
+    async fn creates_gets_updates_gets_resource() {
+        let client = Client::local().await;
+        client.create_table::<TestResource>(None).await.unwrap();
+
+        let resource = TestResource {
+            pk: "primary".into(),
+            sk: "secondary".into(),
+            string: "string".into(),
+            bool: true,
+            int: 1,
+            float: 0.0001,
+            nullable: Some("nullable".into()),
+            string_arr: vec!["foo".into(), "bar".into()],
+            string_2_string_hashmap: HashMap::from([
+                ("a".into(), "1".into()),
+                ("b".into(), "2".into()),
+            ]),
+            nested: Nested {
+                code: 1,
+                msg: "foo".into(),
+            },
+        };
+
+        client.create(&resource).await.unwrap();
+
+        let getted = client
+            .get::<TestResource>(resource.pk_sk())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(resource, getted);
+
+        client
+            .update(
+                &getted,
+                json!({
+                    "string": "_string",
+                    "bool": false,
+                    "int": 2,
+                    "float": 0.0002,
+                    "nullable": null,
+                    "string_arr": ["_foo", "_bar"],
+                    "string_2_string_hashmap": {
+                        "_a": "2",
+                        "_b": "3"
+                    },
+                    "nested": {
+                        "code": 2,
+                        "msg": "_foo"
+                    }
+                }),
+            )
+            .await
+            .unwrap();
+
+        let updated = client
+            .get::<TestResource>(resource.pk_sk())
+            .await
+            .unwrap()
+            .unwrap();
+
+        let expected = TestResource {
+            pk: "primary".into(),
+            sk: "secondary".into(),
+            string: "_string".into(),
+            bool: false,
+            int: 2,
+            float: 0.0002,
+            nullable: None,
+            string_arr: vec!["_foo".into(), "_bar".into()],
+            string_2_string_hashmap: HashMap::from([
+                ("_a".into(), "2".into()),
+                ("_b".into(), "3".into()),
+            ]),
+            nested: Nested {
+                code: 2,
+                msg: "_foo".into(),
+            },
+        };
+
+        assert_eq!(expected, updated)
     }
 }
