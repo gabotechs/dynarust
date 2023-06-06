@@ -9,13 +9,16 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DynarustError {
-    #[error("{0}")]
+    #[error("Unexpected error: {0}")]
     UnexpectedError(String),
 
-    #[error("{0}")]
+    #[error("Invalid request: {0}")]
+    InvalidRequestError(String),
+
+    #[error("Attribute parse error: {0}")]
     AttributeParseError(String),
 
-    #[error("{0}")]
+    #[error("Attribute serialize error: {0}")]
     AttributeSerializeError(String),
 
     #[error("Error while deserializing resource: {0}")]

@@ -37,6 +37,12 @@ impl Client {
             return Ok(updated);
         }
 
+        if updated.pk_sk() != resource.pk_sk() {
+            return Err(DynarustError::InvalidRequestError(
+                "Cannot update PK and/or SK".into(),
+            ));
+        }
+
         let condition_check = Self::condition_check_exists().merge(condition_checks);
 
         let (pk, sk) = resource.pk_sk();
@@ -91,6 +97,12 @@ impl Client {
 
         if request.is_empty() {
             return Ok(updated);
+        }
+
+        if updated.pk_sk() != resource.pk_sk() {
+            return Err(DynarustError::InvalidRequestError(
+                "Cannot update PK and/or SK".into(),
+            ));
         }
 
         let condition_check = Self::condition_check_exists().merge(condition_checks);
