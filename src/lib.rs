@@ -10,4 +10,6 @@ mod update;
 
 pub use client::*;
 pub use errors::*;
+pub use serde;
+pub use serde_json;
 pub use table::CreateTableOptions;
