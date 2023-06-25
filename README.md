@@ -18,7 +18,7 @@ You will need the following deps to your `Cargo.toml`, tweak the versions to you
 [dependencies]
 dynarust = "*"
 serde = "*"
-tokio = { version = "*", fatures = ["full"] }
+tokio = { version = "*", features = ["full"] }
 ```
 
 ```rust
