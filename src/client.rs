@@ -11,9 +11,13 @@ use crate::DynarustError;
 pub(crate) const PK: &str = "PrimaryKey";
 pub(crate) const SK: &str = "SecondaryKey";
 
+/// list options for listing resources in dynamo under the same PrimaryKey.
 pub struct ListOptions {
+    /// Sort key to start from listing. If not provided it will start listing from the beginning.
     pub from: Option<String>,
+    /// maximum number of items to list in a single page, default is 25.
     pub limit: i32,
+    /// whether to list in ascending order or in descending order, default is false.
     pub sort_desc: bool,
 }
 
@@ -27,16 +31,24 @@ impl Default for ListOptions {
     }
 }
 
+/// All the resources that dynarust uses must implement this trait.
 pub trait Resource {
+    /// DynamoDB's table name for this resource.
     fn table() -> String;
+    /// Rules for forming the PrimaryKey and SecondaryKey based on the resource object.
     fn pk_sk(&self) -> (String, String);
 }
 
+/// Client that holds the connection to dynamo.
 pub struct Client {
     pub(crate) client: aws_sdk_dynamodb::Client,
 }
 
 impl Client {
+    /// Build a client from AWS config. It will look for the next environment variables:
+    /// AWS_ACCESS_KEY_ID
+    /// AWS_SECRET_ACCESS_KEY
+    /// AWS_REGION
     pub async fn aws() -> Self {
         let cfg = aws_config::from_env().load().await;
         Client {
@@ -44,6 +56,9 @@ impl Client {
         }
     }
 
+    /// Connect against a local version of DynamoDB running in port 8000.
+    /// A DynamoDB instance can be easily launched with:
+    /// docker run -p 8000:8000 amazon/dynamodb-local
     pub async fn local() -> Self {
         env::set_var("AWS_REGION", "us-east-1");
         env::set_var("AWS_ACCESS_KEY_ID", ".");
@@ -136,10 +151,23 @@ impl Client {
         }
     }
 
-    pub fn begin_transaction() -> Vec<TransactWriteItem> {
-        vec![]
-    }
-
+    /// Executes a transaction given the transaction context.
+    ///
+    /// # arguments
+    ///
+    /// * `transaction_context` - A transaction context initiated by `self.begin_transaction`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // This example creates two resources transactionally
+    /// async {
+    ///     let mut context = dynarust::Client::begin_transaction();
+    ///     dynarust::Client::transact_create(&resource_1, &mut context)?;
+    ///     dynarust::Client::transact_create(&resource_2, &mut context)?;
+    ///     client.execute_transaction(context).await?;
+    /// }
+    /// ```
     pub async fn execute_transaction(
         &self,
         transaction_context: Vec<TransactWriteItem>,
@@ -153,12 +181,36 @@ impl Client {
     }
 }
 
+/// Creates a transaction context.
+///
+/// # Examples
+///
+/// ```
+/// // This example creates two resources transactionally
+/// async {
+///     let mut context = dynarust::begin_transaction();
+///     dynarust::transact_create(&resource_1, &mut context)?;
+///     dynarust::transact_create(&resource_2, &mut context)?;
+///     client.execute_transaction(context).await?;
+/// }
+/// ```
+pub fn begin_transaction() -> Vec<TransactWriteItem> {
+    vec![]
+}
+
+/// Dynamo operator for comparing values.
 pub enum DynamoOperator {
+    /// Equals.
     Eq,
+    /// Not Equals.
     NEq,
+    /// Greater.
     Gt,
+    /// Greater or equal.
     GtEq,
+    /// Less than.
     Ls,
+    /// Less or equal.
     LsEq,
 }
 

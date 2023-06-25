@@ -73,7 +73,6 @@ use dynarust::serde_json::json;
 struct Car {
     brand: String,
     model: String,
-    horse_power: i64,
     n_modifications: i64,
 }
 
@@ -107,7 +106,6 @@ async fn main() {
     let car = Car {
         brand: "Tesla".into(),
         model: "Y".into(),
-        horse_power: 347,
         n_modifications: 0,
     };
 
@@ -120,9 +118,9 @@ async fn main() {
         price: 14999.95,
     };
 
-    let mut context = dynarust::Client::begin_transaction();
-    dynarust::Client::transact_create(&car_modification, &mut context).unwrap();
-    dynarust::Client::transact_update(&car, json!({ "n_modifications": car.n_modifications + 1 }), &mut context).unwrap();
+    let mut context = dynarust::begin_transaction();
+    dynarust::transact_create(&car_modification, &mut context).unwrap();
+    dynarust::transact_update(&car, json!({ "n_modifications": car.n_modifications + 1 }), &mut context).unwrap();
     client.execute_transaction(context).await.unwrap();
 
     let tesla = client.get::<Car>(("Tesla".into(), "Y".into())).await.unwrap();

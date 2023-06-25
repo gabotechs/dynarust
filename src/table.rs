@@ -18,14 +18,13 @@ impl Default for CreateTableOptions {
     }
 }
 
-impl Client {
-    pub fn create_sam_resource<T: Resource>(maybe_options: Option<CreateTableOptions>) -> String {
-        let options = maybe_options.unwrap_or(CreateTableOptions::default());
-        let read_capacity = options.read_capacity;
-        let write_capacity = options.write_capacity;
-        let table_name = T::table();
-        format!(
-            "\
+pub fn create_sam_resource<T: Resource>(maybe_options: Option<CreateTableOptions>) -> String {
+    let options = maybe_options.unwrap_or(CreateTableOptions::default());
+    let read_capacity = options.read_capacity;
+    let write_capacity = options.write_capacity;
+    let table_name = T::table();
+    format!(
+        "\
 {table_name}DynamoDBTable:
   Type: AWS::DynamoDB::Table
   Properties:
@@ -44,9 +43,11 @@ impl Client {
       ReadCapacityUnits: {read_capacity}
       WriteCapacityUnits: {write_capacity}
 "
-        )
-    }
+    )
+}
 
+impl Client {
+    /// Creates a table in dynamo with the appropriate configuration for resource T
     pub async fn create_table<T: Resource>(
         &self,
         options: Option<CreateTableOptions>,

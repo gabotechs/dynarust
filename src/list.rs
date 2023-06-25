@@ -6,6 +6,43 @@ use crate::client::{PK, SK};
 use crate::{Client, DynarustError, ListOptions, Resource};
 
 impl Client {
+    /// List all the resources under the same pk.
+    ///
+    /// # arguments
+    ///
+    /// * `pk` - Primary Key under which the listed resources live.
+    /// * `options` - optional pagination options.
+    ///
+    /// # example
+    ///
+    /// ```
+    /// use serde::{Deserialize, Serialize};
+    /// use dynarust::ListOptions;
+    ///
+    /// #[derive(Serialize, Deserialize)]
+    /// struct Event {
+    ///     id: String,
+    ///     timestamp: i64
+    /// }
+    ///
+    /// impl dynarust::Resource for Event {
+    ///     fn table() -> String { "Events".into() }
+    ///     fn pk_sk(&self) -> (String, String) { (self.id.into(), self.timestamp.to_string()) }
+    /// }
+    ///
+    /// async {
+    ///     let client = dynarust::Client::local().await;
+    ///     let result = client.list(
+    ///         "client-events".into(),
+    ///         &ListOptions {
+    ///              from: Some("16794003059".into()),
+    ///              limit: 100,
+    ///              sort_desc: true
+    ///         }
+    ///     ).await?;
+    ///     assert_eq!(result.len(), 100)
+    /// }
+    /// ```
     pub async fn list<T: Resource + DeserializeOwned>(
         &self,
         pk: String,

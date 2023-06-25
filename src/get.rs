@@ -8,6 +8,10 @@ use crate::client::{PK, SK};
 use crate::{Client, DynarustError, Resource};
 
 impl Client {
+    /// Retrieves a resource. If the resource does not exist returns Option::None.
+    ///
+    /// # arguments
+    /// * `pk_sk` - Pk and sk pair for identifying the resource
     pub async fn get<T: Resource + DeserializeOwned>(
         &self,
         (pk, sk): (String, String),
@@ -33,6 +37,11 @@ impl Client {
         }
     }
 
+    /// Retrieves multiple resource in the same operation. If one of the resources do not exist
+    /// it will not be present in the resulting HashMap.
+    ///
+    /// # arguments
+    /// * `items` - Array of pk and sk pairs identifying the resource that will be retrieved.
     pub async fn batch_get<T: Resource + DeserializeOwned>(
         &self,
         items: Vec<(String, String)>,

@@ -4,35 +4,58 @@ use crate::client::{PK, SK};
 use crate::condition_check::ConditionCheckInfo;
 use crate::{Client, DynarustError, Resource};
 
+/// Adds a delete operation to a transaction context.
+///
+/// # arguments
+/// * `pk_sk` - The pk and sk pair for identifying the resource.
+/// * `transaction_context` - The transaction context to which the delete operation will be added.
+pub fn transact_delete<T: Resource>(
+    pk_sk: (String, String),
+    transaction_context: &mut Vec<TransactWriteItem>,
+) {
+    transact_delete_with_checks::<T>(pk_sk, vec![], transaction_context)
+}
+
+/// Adds a delete operation to a transaction context, with some conditional checks referencing
+/// the resource that is being deleted.
+///
+/// # arguments
+/// * `pk_sk` - The pk and sk pair for identifying the resource.
+/// * `condition_checks` - The condition checks that will be added to the transaction item.
+/// * `transaction_context` - The transaction context to which the delete operation will be added.
+pub fn transact_delete_with_checks<T: Resource>(
+    (pk, sk): (String, String),
+    condition_checks: Vec<ConditionCheckInfo>,
+    transaction_context: &mut Vec<TransactWriteItem>,
+) {
+    let mut delete = delete::Builder::default()
+        .table_name(T::table())
+        .key(PK, AttributeValue::S(pk))
+        .key(SK, AttributeValue::S(sk));
+
+    delete = ConditionCheckInfo::default()
+        .merge(condition_checks)
+        .dump_in_delete(delete);
+
+    transaction_context.push(TransactWriteItem::builder().delete(delete.build()).build());
+}
+
 impl Client {
-    pub fn transact_delete<T: Resource>(
-        pk_sk: (String, String),
-        transaction_context: &mut Vec<TransactWriteItem>,
-    ) {
-        Self::transact_delete_with_checks::<T>(pk_sk, vec![], transaction_context)
-    }
-
-    pub fn transact_delete_with_checks<T: Resource>(
-        (pk, sk): (String, String),
-        condition_checks: Vec<ConditionCheckInfo>,
-        transaction_context: &mut Vec<TransactWriteItem>,
-    ) {
-        let mut delete = delete::Builder::default()
-            .table_name(T::table())
-            .key(PK, AttributeValue::S(pk))
-            .key(SK, AttributeValue::S(sk));
-
-        delete = ConditionCheckInfo::default()
-            .merge(condition_checks)
-            .dump_in_delete(delete);
-
-        transaction_context.push(TransactWriteItem::builder().delete(delete.build()).build());
-    }
-
+    /// Deletes a resource.
+    ///
+    /// # arguments
+    ///
+    /// * `pk_sk` - Pk and sk pair for identifying the resource that will get deleted.
     pub async fn delete<T: Resource>(&self, pk_sk: (String, String)) -> Result<(), DynarustError> {
         self.delete_with_checks::<T>(pk_sk, vec![]).await
     }
 
+    /// Deletes a resource with additional condition checks.
+    ///
+    /// # arguments
+    ///
+    /// * `pk_sk` - Pk and sk pair for identifying the resource that will get deleted.
+    /// * `condition_checks` - The condition checks that will be added to the transaction item.
     pub async fn delete_with_checks<T: Resource>(
         &self,
         (pk, sk): (String, String),
@@ -58,6 +81,7 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use crate::client::tests::TestResource;
+    use crate::condition_check::condition_check_number;
     use crate::{Client, DynamoOperator, Resource};
 
     #[tokio::test]
@@ -100,7 +124,7 @@ mod tests {
         let err = client
             .delete_with_checks::<TestResource>(
                 resource.pk_sk(),
-                vec![Client::condition_check_number("int", DynamoOperator::Gt, 1)],
+                vec![condition_check_number("int", DynamoOperator::Gt, 1)],
             )
             .await
             .unwrap_err();
