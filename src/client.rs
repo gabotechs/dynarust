@@ -60,6 +60,11 @@ impl Client {
     /// A DynamoDB instance can be easily launched with:
     /// docker run -p 8000:8000 amazon/dynamodb-local
     pub async fn local() -> Self {
+        Self::local_on_port(8000).await
+    }
+
+    /// Connect against a local version of DynamoDB running on the specified port.
+    pub async fn local_on_port(port: u16) -> Self {
         env::set_var("AWS_REGION", "us-east-1");
         env::set_var("AWS_ACCESS_KEY_ID", ".");
         env::set_var("AWS_SECRET_ACCESS_KEY", ".");
@@ -67,7 +72,7 @@ impl Client {
         Client {
             client: aws_sdk_dynamodb::Client::from_conf(
                 aws_sdk_dynamodb::config::Builder::from(&cfg)
-                    .endpoint_url("http://localhost:8000")
+                    .endpoint_url(format!("http://localhost:{port}"))
                     .build(),
             ),
         }
@@ -100,7 +105,7 @@ impl Client {
             Ok(AttributeValue::Bool(bool))
         } else if let Some(float) = v.as_f64() {
             Ok(AttributeValue::N(float.to_string()))
-        } else if let Some(..) = v.as_null() {
+        } else if v.as_null().is_some() {
             Ok(AttributeValue::Null(true))
         } else if let Some(arr) = v.as_array() {
             let mut result = vec![];
