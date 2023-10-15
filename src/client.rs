@@ -60,6 +60,11 @@ impl Client {
     /// A DynamoDB instance can be easily launched with:
     /// docker run -p 8000:8000 amazon/dynamodb-local
     pub async fn local() -> Self {
+        Self::local_on_port(8000).await
+    }
+
+    /// Connect against a local version of DynamoDB running on the specified port.
+    pub async fn local_on_port(port: u16) -> Self {
         env::set_var("AWS_REGION", "us-east-1");
         env::set_var("AWS_ACCESS_KEY_ID", ".");
         env::set_var("AWS_SECRET_ACCESS_KEY", ".");
@@ -67,7 +72,7 @@ impl Client {
         Client {
             client: aws_sdk_dynamodb::Client::from_conf(
                 aws_sdk_dynamodb::config::Builder::from(&cfg)
-                    .endpoint_url("http://localhost:8000")
+                    .endpoint_url(format!("http://localhost:{port}"))
                     .build(),
             ),
         }

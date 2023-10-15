@@ -52,7 +52,7 @@ impl Client {
         &self,
         options: Option<CreateTableOptions>,
     ) -> Result<(), DynarustError> {
-        let options = options.unwrap_or(CreateTableOptions::default());
+        let options = options.unwrap_or_default();
         let pk = AttributeDefinition::builder()
             .attribute_name(PK)
             .attribute_type(ScalarAttributeType::S)
@@ -91,16 +91,36 @@ impl Client {
             .await;
 
         if let Err(err) = result {
-            let service_err = err.into_service_error();
-            if service_err.is_resource_in_use_exception() {
+            let err: DynarustError = err.into();
+            if let DynarustError::TableAlreadyExistsError(_) = err {
                 Ok(())
             } else {
-                Err(DynarustError::UnexpectedError(format!(
-                    "Unknown error creating table {service_err}",
-                )))
+                Err(err)
             }
         } else {
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::tests::TestResource;
+
+    #[tokio::test]
+    async fn test_no_connection_to_dynamo() {
+        let client = Client::local_on_port(12345).await;
+        let err = client
+            .create_table::<TestResource>(Some(CreateTableOptions {
+                read_capacity: 0,
+                write_capacity: 0,
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(
+            format!("{err}"),
+            "Connection error: could not connect to dynamo"
+        )
     }
 }
