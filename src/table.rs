@@ -19,7 +19,7 @@ impl Default for CreateTableOptions {
 }
 
 pub fn create_sam_resource<T: Resource>(maybe_options: Option<CreateTableOptions>) -> String {
-    let options = maybe_options.unwrap_or(CreateTableOptions::default());
+    let options = maybe_options.unwrap_or_default();
     let read_capacity = options.read_capacity;
     let write_capacity = options.write_capacity;
     let table_name = T::table();

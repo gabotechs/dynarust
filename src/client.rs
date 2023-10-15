@@ -105,7 +105,7 @@ impl Client {
             Ok(AttributeValue::Bool(bool))
         } else if let Some(float) = v.as_f64() {
             Ok(AttributeValue::N(float.to_string()))
-        } else if let Some(..) = v.as_null() {
+        } else if v.as_null().is_some() {
             Ok(AttributeValue::Null(true))
         } else if let Some(arr) = v.as_array() {
             let mut result = vec![];
