@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       dynamo:
-        image: amazon/dynamodb-local
+        image: amazon/dynamodb-local:1.22.0
         ports:
           - 8000:8000
     steps:
