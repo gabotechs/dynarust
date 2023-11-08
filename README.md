@@ -12,7 +12,7 @@ of use cases.
 
 # Usage
 
-You will need the following deps to your `Cargo.toml`, tweak the versions to your needs:
+You will need the following dependencies in your `Cargo.toml` (tweak versions as you need):
 
 ```toml
 [dependencies]
@@ -22,7 +22,7 @@ tokio = { version = "*", features = ["full"] }
 ```
 
 ```rust
-// Spawn a local dynamo: `docker run -p 8000:8000 amazon/dynamodb-local`
+// Spawn a local dynamo instance: `docker run -p 8000:8000 amazon/dynamodb-local`
 use dynarust::serde::{Deserialize, Serialize};
 use dynarust::serde_json::json;
 
@@ -61,8 +61,8 @@ async fn main() {
 
 # Transactions
 
-Dynarust's api is very focused on transaction ergonomics, and offers a way or doing transactional operations
-almost as if they were just normal operations
+Dynarust's api is focused on transaction ergonomics, and offers a way or doing transactional operations
+almost as if they were just normal operations:
 
 ```rust
 // Spawn a local dynamo: `docker run -p 8000:8000 amazon/dynamodb-local`
