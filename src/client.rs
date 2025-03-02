@@ -56,6 +56,12 @@ impl Client {
         }
     }
 
+    /// Build a client wrapping an existing aws dynamodb client instantiated with
+    /// the `aws_sdk_dynamodb` crate.
+    pub fn from_aws_client(client: aws_sdk_dynamodb::Client) -> Self {
+        Self { client }
+    }
+
     /// Connect against a local version of DynamoDB running in port 8000.
     /// A DynamoDB instance can be easily launched with:
     /// docker run -p 8000:8000 amazon/dynamodb-local
