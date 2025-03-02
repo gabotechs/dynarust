@@ -17,6 +17,7 @@ pub use get::*;
 pub use list::*;
 pub use serde;
 pub use serde_json;
+pub use aws_sdk_dynamodb;
 pub use table::CreateTableOptions;
 pub use table::*;
 pub use update::*;
